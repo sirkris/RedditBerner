@@ -6,7 +6,7 @@ namespace RedditBerner
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            
         }
     }
 }
