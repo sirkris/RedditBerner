@@ -14,10 +14,12 @@ namespace RedditBerner
     {
         private string ConfigDir { get; set; }
         private string ConfigPath { get; set; }
+        private string SubredditsPath { get; set; }
         private string ScriptsDir { get; set; }
 
         private Config Config { get; set; }
         private IList<string> Scripts { get; set; }
+        private IList<string> Subreddits { get; set; }
 
         private RedditAPI Reddit { get; set; }
         public bool Active { get; set; }
@@ -89,6 +91,23 @@ namespace RedditBerner
                 LoadConfig();
             }
 
+            SubredditsPath = Path.Combine(ConfigDir, "subreddits.json");
+            if (!File.Exists(SubredditsPath))
+            {
+                Subreddits = new List<string>
+                {
+                    "StillSandersForPres",
+                    "WayOfTheBern",
+                    "SandersForPresident",
+                    "BernieSanders"
+                };
+                SaveSubreddits();
+            }
+            else
+            {
+                LoadSubreddits();
+            }
+
             ScriptsDir = Path.Combine(Environment.CurrentDirectory, "scripts");
             if (!Directory.Exists(ScriptsDir))
             {
@@ -101,12 +120,19 @@ namespace RedditBerner
             }
 
             LoadScripts();
+            if (Scripts == null
+                || Scripts.Count.Equals(0))
+            {
+                throw new Exception("No suitable scripts found!  Please add at least 1 text file under 10 K to serve as a comment template so the app knows what content to post.");
+            }
 
             Reddit = new RedditAPI(appId: AppId, refreshToken: Config.RefreshToken, accessToken: Config.AccessToken);
         }
 
         public void Start()
         {
+            Console.WriteLine("Commencing bot workflow....");
+
             // TODO - Register callback.  --Kris
 
             Active = true;
@@ -116,6 +142,8 @@ namespace RedditBerner
             }
 
             // TODO - Unregister callback.  --Kris
+
+            Console.WriteLine("Bot workflow terminated.");
         }
 
         private void LoadConfig()
@@ -126,6 +154,16 @@ namespace RedditBerner
         private void SaveConfig()
         {
             File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(Config));
+        }
+
+        private void LoadSubreddits()
+        {
+            Subreddits = JsonConvert.DeserializeObject<IList<string>>(File.ReadAllText(SubredditsPath));
+        }
+
+        private void SaveSubreddits()
+        {
+            File.WriteAllText(SubredditsPath, JsonConvert.SerializeObject(Subreddits));
         }
 
         // Note - Script files must end in a .txt extension and not exceed 10,000 characters in length in order to be recognized.  --Kris
