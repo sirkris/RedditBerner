@@ -4,6 +4,19 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <ApplicationIcon>RedditBernerIcon.ico</ApplicationIcon>
+    <Version>1.0.0+develop</Version>
+    <Authors>Kris Craig</Authors>
+    <Description>Monitors pro-Bernie subreddits for new posts and adds volunteer signup links in the comments.
+</Description>
+    <PackageLicenseUrl>https://github.com/sirkris/RedditBerner/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/sirkris/RedditBerner</PackageProjectUrl>
+    <PackageIconUrl></PackageIconUrl>
+    <RepositoryUrl>https://github.com/sirkris/RedditBerner</RepositoryUrl>
+    <RepositoryType>Git</RepositoryType>
+    <AssemblyVersion>1.0.0.1</AssemblyVersion>
+    <FileVersion>1.0.0.1</FileVersion>
+    <PackageReleaseNotes />
+    <Copyright>Copyright (C) 2019 by Kris Craig</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
