@@ -1,4 +1,4 @@
-﻿using System;
+﻿
 
 namespace RedditBerner
 {
@@ -6,7 +6,8 @@ namespace RedditBerner
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Workflow workflow = new Workflow();
+            workflow.Start();
         }
     }
 }
