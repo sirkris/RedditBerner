@@ -272,7 +272,7 @@ namespace RedditBerner
 
         private void Log(string message, string subreddit = null)
         {
-            Console.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "]" + (!string.IsNullOrWhiteSpace(subreddit) ? " [" + subreddit + "] " : "") + message);
+            Console.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " + (!string.IsNullOrWhiteSpace(subreddit) ? "[" + subreddit + "] " : "") + message);
         }
 
         // Fires asynchronously whenever a new post is detected in one of the monitored subreddits.  --Kris
