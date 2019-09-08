@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
 using Reddit;
 using Reddit.AuthTokenRetriever;
+using Reddit.Controllers;
+using Reddit.Controllers.EventArgs;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,7 +21,8 @@ namespace RedditBerner
 
         private Config Config { get; set; }
         private IList<string> Scripts { get; set; }
-        private IList<string> Subreddits { get; set; }
+        private IList<Subreddit> Subreddits { get; set; }
+        private Random Random { get; set; }
 
         private RedditAPI Reddit { get; set; }
         public bool Active { get; set; }
@@ -88,24 +91,14 @@ namespace RedditBerner
             }
             else
             {
-                LoadConfig();
-            }
+                Console.WriteLine("*************************");
+                Console.WriteLine("*      RedditBerner     *");
+                Console.WriteLine("* Created by Kris Craig *");
+                Console.WriteLine("*************************");
 
-            SubredditsPath = Path.Combine(ConfigDir, "subreddits.json");
-            if (!File.Exists(SubredditsPath))
-            {
-                Subreddits = new List<string>
-                {
-                    "StillSandersForPres",
-                    "WayOfTheBern",
-                    "SandersForPresident",
-                    "BernieSanders"
-                };
-                SaveSubreddits();
-            }
-            else
-            {
-                LoadSubreddits();
+                Console.WriteLine();
+
+                LoadConfig();
             }
 
             ScriptsDir = Path.Combine(Environment.CurrentDirectory, "scripts");
@@ -127,54 +120,128 @@ namespace RedditBerner
             }
 
             Reddit = new RedditAPI(appId: AppId, refreshToken: Config.RefreshToken, accessToken: Config.AccessToken);
+
+            SubredditsPath = Path.Combine(ConfigDir, "subreddits.json");
+            if (!File.Exists(SubredditsPath))
+            {
+                Subreddits = new List<Subreddit>
+                {
+                    Reddit.Subreddit("StillSandersForPres"),
+                    Reddit.Subreddit("WayOfTheBern"),
+                    Reddit.Subreddit("SandersForPresident"),
+                    Reddit.Subreddit("BernieSanders")
+                };
+                SaveSubreddits();
+            }
+            else
+            {
+                LoadSubreddits();
+            }
+
+            Random = new Random();
         }
 
         public void Start()
         {
-            Console.WriteLine("Commencing bot workflow....");
+            Log("Commencing bot workflow....");
 
-            // TODO - Register callback.  --Kris
+            // Begin monitoring.  --Kris
+            MonitorStart();
 
             Active = true;
             while (Active)
             {
-                // TODO - Main workflow.  --Kris
+                Thread.Sleep(3000);
             }
 
-            // TODO - Unregister callback.  --Kris
+            // End monitoring.  --Kris
+            MonitorEnd();
 
-            Console.WriteLine("Bot workflow terminated.");
+            Log("Bot workflow terminated.");
+        }
+
+        private void MonitorStart()
+        {
+            foreach (Subreddit subreddit in Subreddits)
+            {
+                Log("Monitoring " + subreddit.Name + " for new posts....");
+
+                subreddit.Posts.GetNew();
+                subreddit.Posts.MonitorNew();
+                subreddit.Posts.NewUpdated += C_NewPostsUpdated;
+            }
+        }
+
+        private void MonitorEnd()
+        {
+            foreach (Subreddit subreddit in Subreddits)
+            {
+                Log("Terminating monitoring of " + subreddit.Name + " for new posts....");
+
+                subreddit.Posts.NewUpdated -= C_NewPostsUpdated;
+                subreddit.Posts.MonitorNew();
+            }
         }
 
         private void LoadConfig()
         {
+            Log("Loading config....");
+
             Config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(ConfigPath));
+
+            Log("Config loaded successfully.");
         }
 
         private void SaveConfig()
         {
+            Log("Saving config....");
+
             File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(Config));
+
+            Log("Config saved successfully.");
         }
 
         private void LoadSubreddits()
         {
-            Subreddits = JsonConvert.DeserializeObject<IList<string>>(File.ReadAllText(SubredditsPath));
+            Log("Loading subreddits....");
+
+            IList<string> subs = JsonConvert.DeserializeObject<IList<string>>(File.ReadAllText(SubredditsPath));
+
+            Subreddits = new List<Subreddit>();
+            foreach (string sub in subs)
+            {
+                Subreddits.Add(Reddit.Subreddit(sub));
+                Log("Loaded " + sub + " successfully.");
+            }
         }
 
         private void SaveSubreddits()
         {
-            File.WriteAllText(SubredditsPath, JsonConvert.SerializeObject(Subreddits));
+            Log("Saving subreddits list....");
+
+            IList<string> subs = new List<string>();
+            foreach (Subreddit subreddit in Subreddits)
+            {
+                subs.Add(subreddit.Name);
+            }
+
+            File.WriteAllText(SubredditsPath, JsonConvert.SerializeObject(subs));
+
+            Log("Subreddits list saved successfully.");
         }
 
         // Note - Script files must end in a .txt extension and not exceed 10,000 characters in length in order to be recognized.  --Kris
         private void LoadScripts()
         {
+            Log("Loading comment scripts....");
+
             Scripts = new List<string>();
             foreach (FileInfo file in (new DirectoryInfo(ScriptsDir)).GetFiles("*.txt", SearchOption.AllDirectories))
             {
                 if (file.Length <= 10000)
                 {
                     Scripts.Add(File.ReadAllText(file.FullName));
+                    Log("Loaded script file '" + file.FullName + "' successfully.");
                 }
             }
         }
@@ -194,6 +261,28 @@ namespace RedditBerner
                     Arguments = authUrl
                 };
                 Process.Start(processStartInfo);
+            }
+        }
+
+        // Replaces "{subreddit}" with sub name and "{post}" with post fullname (ex. "?sub={subreddit}&post={post}" might become "?sub=WayOfTheBern&post=t3_d0vw1j").  --Kris
+        private string ParseVars(string s, Post post)
+        {
+            return s.Replace(@"{subreddit}", post.Subreddit).Replace(@"{postid}", post.Id).Replace(@"{post}", post.Fullname);
+        }
+
+        private void Log(string message, string subreddit = null)
+        {
+            Console.WriteLine("[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "]" + (!string.IsNullOrWhiteSpace(subreddit) ? " [" + subreddit + "] " : "") + message);
+        }
+
+        // Fires asynchronously whenever a new post is detected in one of the monitored subreddits.  --Kris
+        public void C_NewPostsUpdated(object sender, PostsUpdateEventArgs e)
+        {
+            // Comment on each new post as it comes in.  --Kris
+            foreach (Post post in e.Added)
+            {
+                Comment comment = post.Comment(ParseVars(Scripts[Random.Next(0, Scripts.Count)], post)).Submit();
+                Log("Added comment " + comment.Fullname + " to post " + post.Fullname);
             }
         }
     }
